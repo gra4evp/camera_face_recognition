@@ -44,38 +44,36 @@ def crop_frame(frame, bbox):
 def detect_faces(frame, landmarks=False):
     img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     # img = Image.fromarray(img)
+
+    # Если landmarks=True, то вернется кортеж длиной 3
     boxes, probs = mtcnn.detect(img, landmarks=landmarks)
     return boxes, probs
 
 
-def process_frame(frame, frame_count, frame_scale, need_save=False):
-    frame = crop_frame(frame, CAMERA_ROI)
-    frame = scale_frame(frame, scale=frame_scale)
-    boxes, probs = detect_faces(frame)
+def process_frame(frame, frame_count, scale):
+    processed_frame = scale_frame(frame=crop_frame(frame, CAMERA_ROI), scale=scale)
 
-    detected_faces = []
+    boxes, probs = detect_faces(processed_frame)
+    detected_faces = {'boxes': [], 'images': [], 'filenames': []}
     if boxes is not None:
         for person_idx, box in enumerate(boxes):
             x1, y1, x2, y2 = [int(b) for b in box]
-            face_img = frame[y1:y2, x1:x2]
-            if need_save:
-                save_face_image(frame, frame_count, person_idx)
-            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            detected_faces.append({
-                'box': (x1, y1, x2, y2),
-                'image': face_img,
-                'filename': face_filename
-            })
-    return frame, detected_faces
+            face_img = processed_frame[y1:y2, x1:x2]
+
+            detected_faces['boxes'].append((x1, y1, x2, y2))
+            detected_faces['images'].append(face_img)
+            detected_faces['filenames'].append(f"face_frame{frame_count:04}_person{person_idx:02}.jpg")
+    return processed_frame, detected_faces
 
 
-def save_face_image(face_img, frame_count, person_idx):
-    face_filename = f"face_frame{frame_count:04}_person{person_idx:02}.jpg"
-    cv2.imwrite(filename=os.path.join(frames_dirpath, face_filename), img=face_img)
-    logger.info(f"Saved cropped face image: {face_filename}")
+def save_face_images(imgs, filenames, dirpath):
+    for img, filename in zip(imgs, filenames):
+        filepath = os.path.join(dirpath, filename)
+        cv2.imwrite(filename=filepath, img=img)
+        logger.info(f"Saved cropped face image: {filepath}")
 
 
-def process_stream(cap, lag, frame_scale):
+def process_stream(cap, lag, frame_scale, need_draw=False, faces_dirpath=None):
     frame_count = 0
     while True:
         success, frame = cap.read()
@@ -84,28 +82,48 @@ def process_stream(cap, lag, frame_scale):
             break
 
         frame_count += 1
-        frame = crop_frame(frame, CAMERA_ROI)
-        frame = scale_frame(frame, scale=frame_scale)
-        boxes, probs = mtcnn.detect(frame)  # Если landmarks=True, то вернется кортеж длиной 3
+        frame, detected_faces = process_frame(frame=frame, frame_count=frame_count, scale=frame_scale)
 
-        if boxes is not None:
-            for person_idx, box in enumerate(boxes):
-                x1, y1, x2, y2 = [int(b) for b in box]
+        if need_draw:
+            draw_boxes(frame, boxes=detected_faces['boxes'])
 
-                face_img = frame[y1:y2, x1:x2]
-                face_filename = f"face_{frame_count:04}_{person_idx:04}.jpg"
-                cv2.imwrite(filename=os.path.join(frames_dirpath, face_filename), img=face_img)
-                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+        if faces_dirpath is not None:
+            save_face_images(
+                imgs=detected_faces['images'],
+                filenames=detected_faces['filenames'],
+                dirpath=faces_dirpath
+            )
 
         cv2.imshow('RTSP Stream', frame)
+
+        time.sleep(lag)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
-        time.sleep(lag)
-
     cap.release()
     cv2.destroyAllWindows()  # Закрывает все окна, созданные OpenCV
+
+
+def draw_boxes(frame, boxes):
+    """
+    Рисует зеленые прямоугольники на изображении для каждой координаты в boxes.
+
+    Parameters:
+    - frame: исходное изображение
+    - boxes: [list[tuple[int]]] список координат прямоугольников [(x1, y1, x2, y2), ...]
+
+    Returns:
+    - frame_with_boxes: изображение с нарисованными прямоугольниками
+    """
+    # Копируем изображение, чтобы сохранить оригинал
+    frame_with_boxes = frame.copy()
+
+    for box in boxes:
+        x1, y1, x2, y2 = box
+        # Зеленый цвет (0, 255, 0), толщина линии 2 пикселя
+        cv2.rectangle(frame_with_boxes, (x1, y1), (x2, y2), (0, 255, 0), 2)
+    return frame_with_boxes
 
 
 def calculate_fps_of_stream(cap, num_frames):
@@ -159,7 +177,7 @@ if __name__ == "__main__":
         stream_fps = cap.get(cv2.CAP_PROP_FPS)
         lag = 1 / (stream_fps // EVERY_Nth_FRAME)
         logger.info(f"Stream FPS: {stream_fps}, LAG = {lag}")
-        process_stream(cap, lag=lag, frame_scale=FRAME_SCALE)
+        process_stream(cap, lag=lag, frame_scale=FRAME_SCALE, faces_dirpath=frames_dirpath)
     else:
         logger.error("Завершение программы из-за невозможности подключиться к видеопотоку")
     logger.info("Завершено")
