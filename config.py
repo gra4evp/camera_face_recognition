@@ -1,0 +1,1 @@
+RTSP_URL = 'rtsp://admin:admin@128.65.36.211:49158/ISAPI/live/main'
