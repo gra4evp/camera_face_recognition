@@ -26,3 +26,9 @@
 Запустите скрипт `capture.py`, чтобы начать обработку видеопотока:
 ```sh
 python capture.py
+```
+
+## Примеры
+![alt text](https://github.com/gra4evp/camera_face_recognition/blob/main/camera.jpg?raw=true)
+После обрезки
+![alt text](https://github.com/gra4evp/camera_face_recognition/blob/main/camera_croped.jpg?raw=true)
