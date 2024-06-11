@@ -1,6 +1,6 @@
 import cv2
 import os
-from logger import logger
+from logger import collogger
 
 
 def scale_frame(frame, scale):
@@ -65,7 +65,7 @@ def save_face_images(imgs, filenames, dirpath):
     for img, filename in zip(imgs, filenames):
         filepath = os.path.join(dirpath, filename)
         cv2.imwrite(filename=filepath, img=img)
-        logger.info(f"Saved cropped face image: {filepath}")
+        collogger.info(f"Saved cropped face image: {filepath}")
 
 
 def draw_boxes(frame, boxes):

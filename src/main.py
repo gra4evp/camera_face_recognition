@@ -1,7 +1,7 @@
 import os
 import cv2
 from config import RTSP_URL, CAMERA_ROI
-from logger import logger
+from logger import collogger
 from video_stream import connect_to_stream
 from face_detection import process_frame
 from image_processing import scale_frame, crop_frame, transform_frame, draw_boxes, save_face_images
@@ -12,7 +12,7 @@ def process_stream(cap, process_every_n_frame, frame_scale, need_draw=False, fac
     while True:
         success, frame = cap.read()
         if not success:
-            logger.warning("Не удалось получить кадр. Прерывание...")
+            collogger.warning("Не удалось получить кадр. Прерывание...")
             break
 
         frame = transform_frame(
@@ -67,7 +67,7 @@ if __name__ == "__main__":
 
     cap = connect_to_stream(video_src=video_source)
     if cap is not None:
-        logger.info("Успешно подключились к видеопотоку")
+        collogger.info("Успешно подключились к видеопотоку")
         # _, frame = cap.read()
         # frame = crop_frame(frame, CAMERA_ROI)
         # cv2.imwrite('camera_croped.jpg', frame)
@@ -75,8 +75,8 @@ if __name__ == "__main__":
         # calculate_fps_of_stream(cap, num_frames=120)
         stream_fps = cap.get(cv2.CAP_PROP_FPS)
         lag = 1 / (stream_fps // EVERY_Nth_FRAME)
-        logger.info(f"Stream FPS: {stream_fps}, LAG = {lag}")
-        process_stream(cap, process_every_n_frame=EVERY_Nth_FRAME, frame_scale=FRAME_SCALE, need_draw=True, faces_dirpath=frames_dirpath)
+        collogger.info(f"Stream FPS: {stream_fps}, LAG = {lag}")
+        process_stream(cap, process_every_n_frame=EVERY_Nth_FRAME, frame_scale=FRAME_SCALE, need_draw=True, faces_dirpath=None)
     else:
-        logger.error("Завершение программы из-за невозможности подключиться к видеопотоку")
-    logger.info("Завершено")
+        collogger.error("Завершение программы из-за невозможности подключиться к видеопотоку")
+    collogger.info("Завершено")
