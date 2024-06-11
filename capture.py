@@ -1,7 +1,7 @@
 import time
 import os
 import cv2
-from config import RTSP_URL
+from config import RTSP_URL, CAMERA_ROI
 from logger import logger
 from PIL import Image
 import torch
@@ -41,29 +41,33 @@ def crop_frame(frame, bbox):
     return frame[h1:h2, w1:w2]
 
 
+def transform_frame(frame, transforms):
+    for transform, args in transforms:
+        frame = transform(frame, **args)
+    return frame
+
+
 def detect_faces(frame, landmarks=False):
-    img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    # img = Image.fromarray(img)
+    # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    # frame = Image.fromarray(frame)
 
     # Если landmarks=True, то вернется кортеж длиной 3
-    boxes, probs = mtcnn.detect(img, landmarks=landmarks)
+    boxes, probs = mtcnn.detect(frame, landmarks=landmarks)
     return boxes, probs
 
 
-def process_frame(frame, frame_count, scale):
-    processed_frame = scale_frame(frame=crop_frame(frame, CAMERA_ROI), scale=scale)
-
-    boxes, probs = detect_faces(processed_frame)
+def process_frame(frame, frame_count):
+    boxes, probs = detect_faces(frame)
     detected_faces = {'boxes': [], 'images': [], 'filenames': []}
     if boxes is not None:
         for person_idx, box in enumerate(boxes):
             x1, y1, x2, y2 = [int(b) for b in box]
-            face_img = processed_frame[y1:y2, x1:x2]
+            face_img = frame[y1:y2, x1:x2]
 
             detected_faces['boxes'].append((x1, y1, x2, y2))
             detected_faces['images'].append(face_img)
             detected_faces['filenames'].append(f"face_frame{frame_count:04}_person{person_idx:02}.jpg")
-    return processed_frame, detected_faces
+    return detected_faces
 
 
 def save_face_images(imgs, filenames, dirpath):
@@ -73,7 +77,7 @@ def save_face_images(imgs, filenames, dirpath):
         logger.info(f"Saved cropped face image: {filepath}")
 
 
-def process_stream(cap, lag, frame_scale, need_draw=False, faces_dirpath=None):
+def process_stream(cap, process_every_n_frame, frame_scale, need_draw=False, faces_dirpath=None):
     frame_count = 0
     while True:
         success, frame = cap.read()
@@ -81,22 +85,28 @@ def process_stream(cap, lag, frame_scale, need_draw=False, faces_dirpath=None):
             logger.warning("Не удалось получить кадр. Прерывание...")
             break
 
+        frame = transform_frame(
+            frame,
+            transforms=[
+                (crop_frame, {'bbox': CAMERA_ROI}),
+                # (scale_frame, {'scale': frame_scale})
+            ]
+        )
         frame_count += 1
-        frame, detected_faces = process_frame(frame=frame, frame_count=frame_count, scale=frame_scale)
+        if frame_count % process_every_n_frame == 0:
+            detected_faces = process_frame(frame=frame, frame_count=frame_count)
 
-        if need_draw:
-            draw_boxes(frame, boxes=detected_faces['boxes'])
+            if need_draw:
+                frame = draw_boxes(frame, boxes=detected_faces['boxes'])
 
-        if faces_dirpath is not None:
-            save_face_images(
-                imgs=detected_faces['images'],
-                filenames=detected_faces['filenames'],
-                dirpath=faces_dirpath
-            )
+            if faces_dirpath is not None:
+                save_face_images(
+                    imgs=detected_faces['images'],
+                    filenames=detected_faces['filenames'],
+                    dirpath=faces_dirpath
+                )
 
         cv2.imshow('RTSP Stream', frame)
-
-        time.sleep(lag)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
@@ -153,7 +163,6 @@ if __name__ == "__main__":
     else:
         video_source = 0
 
-    CAMERA_ROI = (1000, 1800, 250, 2350)  # Область на камере для обнаружения людей (region_of_interest)
     DEVICE = device='cuda' if torch.cuda.is_available() else 'cpu'
 
     FRAMES_DIRNAME = 'frames'
@@ -173,11 +182,15 @@ if __name__ == "__main__":
     cap = connect_to_stream(video_src=video_source)
     if cap is not None:
         logger.info("Успешно подключились к видеопотоку")
+        # _, frame = cap.read()
+        # frame = crop_frame(frame, CAMERA_ROI)
+        # cv2.imwrite('camera_croped.jpg', frame)
+
         # calculate_fps_of_stream(cap, num_frames=120)
         stream_fps = cap.get(cv2.CAP_PROP_FPS)
         lag = 1 / (stream_fps // EVERY_Nth_FRAME)
         logger.info(f"Stream FPS: {stream_fps}, LAG = {lag}")
-        process_stream(cap, lag=lag, frame_scale=FRAME_SCALE, faces_dirpath=frames_dirpath)
+        process_stream(cap, process_every_n_frame=EVERY_Nth_FRAME, frame_scale=FRAME_SCALE, need_draw=True, faces_dirpath=frames_dirpath)
     else:
         logger.error("Завершение программы из-за невозможности подключиться к видеопотоку")
     logger.info("Завершено")
