@@ -25,7 +25,7 @@
 
 Запустите скрипт `capture.py`, чтобы начать обработку видеопотока:
 ```sh
-python capture.py
+python ./src/main.py
 ```
 
 ## Примеры
