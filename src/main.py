@@ -2,6 +2,9 @@ import os
 import cv2
 from config import RTSP_URL, CAMERA_ROI
 from logger import logger
+from video_stream import connect_to_stream
+from face_detection import process_frame
+from image_processing import scale_frame, crop_frame, transform_frame, draw_boxes, save_face_images
 
 
 def process_stream(cap, process_every_n_frame, frame_scale, need_draw=False, faces_dirpath=None):
