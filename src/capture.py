@@ -1,33 +1,10 @@
 import time
 import os
 import cv2
-from config import RTSP_URL, CAMERA_ROI
+from src.config import RTSP_URL, CAMERA_ROI
 from logger import logger
-from PIL import Image
 import torch
-from facenet_pytorch import MTCNN, InceptionResnetV1
-
-
-def connect_to_stream(video_src, max_attempts=5, delay=5):
-    '''
-    Функция для подключения к видеопотоку с повторными попытками
-    :param video_src:
-    :param max_attempts:
-    :param delay:
-    :return:
-    '''
-    attempts = 0
-    logger.info('Началось подключение')
-    while attempts < max_attempts:
-        cap = cv2.VideoCapture(video_src)
-        if cap.isOpened():
-            return cap
-        else:
-            logger.warning(f"Попытка {attempts + 1} не удалась. Повторная попытка через {delay} секунд.")
-            attempts += 1
-            time.sleep(delay)
-    logger.error("Не удалось подключиться к видеопотоку после нескольких попыток")
-    return None
+from facenet_pytorch import MTCNN
 
 
 def scale_frame(frame, scale):
