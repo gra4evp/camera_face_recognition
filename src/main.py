@@ -19,7 +19,7 @@ def process_stream(cap, process_every_n_frame, frame_scale, need_draw=False, fac
             frame,
             transforms=[
                 (crop_frame, {'bbox': CAMERA_ROI}),
-                # (scale_frame, {'scale': frame_scale})
+                (scale_frame, {'scale': frame_scale})
             ]
         )
         frame_count += 1
@@ -36,9 +36,15 @@ def process_stream(cap, process_every_n_frame, frame_scale, need_draw=False, fac
                     dirpath=faces_dirpath
                 )
 
+            # Если нажата клавиша 's', сохранить изображение с разметкой
+            if cv2.waitKey(1) & 0xFF == ord('s'):
+                filepath = os.path.join(frames_dirpath, f"detected_faces_{frame_count}.jpg")
+                cv2.imwrite(filename=filepath, img=frame)
+                collogger.info(f"Frame with face markings has been saved: {filepath}")
+
         cv2.imshow('RTSP Stream', frame)
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        if cv2.waitKey(1) & 0xFF == ord('q'):  # Выход из стрима по клавише q
             break
 
     cap.release()
@@ -59,23 +65,17 @@ if __name__ == "__main__":
 
     FRAME_SCALE = 0.5
 
-    # расрешение камеры # 2592 x 1920
-    screen_width = 2520  # 2520
-    screen_height = 1680  # 1680
+    # разрешение экрана
+    # screen_width = 2520
+    # screen_height = 1680
 
     EVERY_Nth_FRAME = 5  # Считываем каждый n-ый кадр
 
     cap = connect_to_stream(video_src=video_source)
     if cap is not None:
         collogger.info("Успешно подключились к видеопотоку")
-        # _, frame = cap.read()
-        # frame = crop_frame(frame, CAMERA_ROI)
-        # cv2.imwrite('camera_croped.jpg', frame)
-
-        # calculate_fps_of_stream(cap, num_frames=120)
         stream_fps = cap.get(cv2.CAP_PROP_FPS)
-        lag = 1 / (stream_fps // EVERY_Nth_FRAME)
-        collogger.info(f"Stream FPS: {stream_fps}, LAG = {lag}")
+        collogger.info(f"Stream FPS: {stream_fps}")
         process_stream(cap, process_every_n_frame=EVERY_Nth_FRAME, frame_scale=FRAME_SCALE, need_draw=True, faces_dirpath=None)
     else:
         collogger.error("Завершение программы из-за невозможности подключиться к видеопотоку")
