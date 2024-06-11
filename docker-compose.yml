@@ -1,0 +1,25 @@
+version: '3.7'
+
+services:
+  detector:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: detector
+    ports:
+      - "5000:5000"  # Перенаправление портов для доступа к API
+    environment:
+      - DATABASE_URL=postgresql://username:password@db:5432/mydatabase  # URL для подключения к базе данных
+    depends_on:
+      - db  # Зависимость от сервиса базы данных
+    command: python .src/main.py
+
+  # Сервис для базы данных PostgreSQL
+  db:
+    image: postgres:latest
+    ports:
+      - "5432:5432"  # Перенаправление портов для доступа к базе данных
+    environment:
+      - POSTGRES_DB=mydatabase  # Название базы данных
+      - POSTGRES_USER=username   # Пользователь базы данных
+      - POSTGRES_PASSWORD=password   # Пароль пользователя базы данных
