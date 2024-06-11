@@ -12,7 +12,7 @@
 
 1. Склонируйте репозиторий:
     ```sh
-    git clone https://github.com/yourusername/camera-face-recognition.git
+    git clone https://github.com/gra4evp/camera_face_recognition.git
     cd camera-face-recognition
     ```
 
