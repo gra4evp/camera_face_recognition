@@ -28,7 +28,11 @@
 python ./src/main.py
 ```
 
-## Примеры
+## Что видит камера
 ![alt text](https://github.com/gra4evp/camera_face_recognition/blob/main/camera.jpg?raw=true)
+
 После обрезки
 ![alt text](https://github.com/gra4evp/camera_face_recognition/blob/main/camera_croped.jpg?raw=true)
+
+Пример разметки 
+![alt text](https://github.com/gra4evp/camera_face_recognition/blob/main/detected_faces_example.jpg?raw=true)
