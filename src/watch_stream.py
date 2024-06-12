@@ -2,12 +2,12 @@ import os
 import cv2
 from config import RTSP_URL, CAMERA_ROI
 from logger import collogger
-from video_stream import connect_to_stream
+from stream_utils import connect_to_stream
 from face_detection import process_frame
 from image_processing import scale_frame, crop_frame, transform_frame, draw_boxes, save_face_images
 
 
-def process_stream(cap, process_every_n_frame, frame_scale, need_draw=False, faces_dirpath=None):
+def watch_stream(cap, process_every_n_frame, frame_scale, need_draw=False, faces_dirpath=None):
     frame_count = 0
     while True:
         success, frame = cap.read()
@@ -76,7 +76,7 @@ if __name__ == "__main__":
         collogger.info("Успешно подключились к видеопотоку")
         stream_fps = cap.get(cv2.CAP_PROP_FPS)
         collogger.info(f"Stream FPS: {stream_fps}")
-        process_stream(cap, process_every_n_frame=EVERY_Nth_FRAME, frame_scale=FRAME_SCALE, need_draw=True, faces_dirpath=None)
+        watch_stream(cap, process_every_n_frame=EVERY_Nth_FRAME, frame_scale=FRAME_SCALE, need_draw=True, faces_dirpath=None)
     else:
         collogger.error("Завершение программы из-за невозможности подключиться к видеопотоку")
     collogger.info("Завершено")
