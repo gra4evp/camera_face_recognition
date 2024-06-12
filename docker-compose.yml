@@ -7,19 +7,45 @@ services:
       dockerfile: Dockerfile
     container_name: detector
     ports:
-      - "5000:5000"  # Перенаправление портов для доступа к API
+      - "5000:5000"  # Проброс порта для доступа к Flask приложению с хоста
     environment:
       - DATABASE_URL=postgresql://username:password@db:5432/mydatabase  # URL для подключения к базе данных
+
+    # Volume для монтирования кода из хостовой машины в контейнер
+    # Может быть полезно для разработки: любые изменения в коде на хосте будут сразу видны в контейнере
+    volumes:
+      - ./src:/app
     depends_on:
       - db  # Зависимость от сервиса базы данных
-    command: python .src/main.py
+    command: python .src/app.py
 
-  # Сервис для базы данных PostgreSQL
-  db:
+  db:  # Сервис для базы данных PostgreSQL
     image: postgres:latest
+    container_name: postgres
     ports:
       - "5432:5432"  # Перенаправление портов для доступа к базе данных
     environment:
       - POSTGRES_DB=mydatabase  # Название базы данных
       - POSTGRES_USER=username   # Пользователь базы данных
       - POSTGRES_PASSWORD=password   # Пароль пользователя базы данных
+    volumes:
+      - db_data:/var/lib/postgresql/data  # Volume для персистентного хранения данных базы данных
+
+  # Имитация запроса от клиента для запуска детекции потока с камеры
+  client:
+    image: appropriate/curl
+    container_name: client
+    depends_on:
+      - detector
+    command: >
+      sh -c "
+      until curl -s -X POST http://detector:5000/start_detection
+      -H 'Content-Type: application/json'
+      -d '{\"every_n_frame\": 5}';
+      do echo 'waiting for detector to be available...';
+      sleep 1;
+      done"
+
+
+volumes:
+  db_data:  # Объявление volume для базы данных

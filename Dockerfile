@@ -10,6 +10,3 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Скопируйте все файлы из текущего контекста сборки внутрь контейнера
 COPY . .
-
-# Запустите приложение при старте контейнера
-CMD ["python", "src/main.py"]
