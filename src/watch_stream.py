@@ -3,8 +3,11 @@ import cv2
 from config import RTSP_URL, CAMERA_ROI
 from logger import collogger
 from stream_utils import connect_to_stream
-from face_detection import process_frame
+from face_detection import MTCNNFaceDetector
 from image_processing import scale_frame, crop_frame, transform_frame, draw_boxes, save_face_images
+
+
+face_detector = MTCNNFaceDetector(identify_device=True)
 
 
 def watch_stream(cap, process_every_n_frame, frame_scale, need_draw=False, faces_dirpath=None):
@@ -22,9 +25,10 @@ def watch_stream(cap, process_every_n_frame, frame_scale, need_draw=False, faces
                 (scale_frame, {'scale': frame_scale})
             ]
         )
+
         frame_count += 1
         if frame_count % process_every_n_frame == 0:
-            detected_faces = process_frame(frame=frame, frame_count=frame_count)
+            detected_faces = face_detector.process_frame(frame=frame, frame_count=frame_count)
 
             if need_draw:
                 frame = draw_boxes(frame, boxes=detected_faces['boxes'])
