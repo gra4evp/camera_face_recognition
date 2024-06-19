@@ -1,48 +1,22 @@
 import os
+from threading import Thread
+
 import cv2
+from flask import Flask, request, jsonify
+
 from image_processing import transform_frame, crop_frame, scale_frame
-from face_detection import process_frame
+from face_detection import MTCNNFaceDetector
 from stream_utils import connect_to_stream
 from config import RTSP_URL, CAMERA_ROI
 from logger import collogger
-from flask_sqlalchemy import SQLAlchemy
-from flask import Flask, request, jsonify
-from threading import Thread
+from db.models import save_faces_to_db
+
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql://username:password@db:5432/mydatabase')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-db = SQLAlchemy(app)
-
-
-class DetectedFace(db.Model):
-    __tablename__ = 'detected_faces'
-
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    filename = db.Column(db.String, nullable=False)
-    image = db.Column(db.LargeBinary, nullable=False)
-
-    def __repr__(self):
-        return f"<DetectedFace(id={self.id}, filename='{self.filename}')>"
-
-
-@app.before_first_request
-def setup():
-    db.create_all()
-
-
-def save_faces_to_db(imgs, filenames):
-    for img, filename in zip(imgs, filenames):
-        success, face_img_encoded = cv2.imencode('.jpg', img)
-        if success:
-            face_img_bytes = face_img_encoded.tobytes()
-            db_face = DetectedFace(filename=filename, image=face_img_bytes)
-            db.session.add(db_face)
-            db.session.commit()
-            db.session.refresh(db_face)
-        else:
-            collogger.warning(f'cv2.imencode: {filename}')
+face_detector = MTCNNFaceDetector(identify_device=True)
 
 
 def detect_stream(cap, process_every_n_frame, frame_scale=0.5):
@@ -62,7 +36,7 @@ def detect_stream(cap, process_every_n_frame, frame_scale=0.5):
         )
         frame_count += 1
         if frame_count % process_every_n_frame == 0:
-            detected_faces = process_frame(frame=frame, frame_count=frame_count)
+            detected_faces = face_detector.process_frame(frame=frame, frame_count=frame_count)
             save_faces_to_db(imgs=detected_faces['images'], filenames=detected_faces['filenames'])
 
     cap.release()
