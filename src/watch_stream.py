@@ -4,7 +4,7 @@ from config import RTSP_URL, CAMERA_ROI
 from logger import collogger
 from stream_utils import connect_to_stream
 from face_detection import MTCNNFaceDetector
-from image_processing import scale_frame, crop_frame, transform_frame, draw_boxes, save_face_images
+from image_processing import scale_frame, crop_frame, canny, transform_frame, draw_boxes, save_face_images
 
 
 face_detector = MTCNNFaceDetector(identify_device=True)
@@ -21,10 +21,15 @@ def watch_stream(cap, process_every_n_frame, frame_scale, need_draw=False, faces
         frame = transform_frame(
             frame,
             transforms=[
-                (crop_frame, {'bbox': CAMERA_ROI}),
-                (scale_frame, {'scale': frame_scale})
+                (crop_frame, dict(bbox=CAMERA_ROI)),
+                (scale_frame, dict(scale=frame_scale)),
+                (canny, dict(threshold1=100, threshold2=200))
             ]
         )
+
+        # Преобразование одноканального изображения в трехканальное
+        if len(frame.shape) == 2:  # если изображение одноканальное
+            frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
 
         frame_count += 1
         if frame_count % process_every_n_frame == 0:
@@ -84,3 +89,4 @@ if __name__ == "__main__":
     else:
         collogger.error("Завершение программы из-за невозможности подключиться к видеопотоку")
     collogger.info("Завершено")
+
