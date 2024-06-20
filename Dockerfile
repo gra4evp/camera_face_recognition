@@ -1,5 +1,5 @@
 # Используйте официальный образ Python от Docker Hub
-FROM python:3.9
+FROM python:3.10
 
 # Установите рабочую директорию внутри контейнера
 WORKDIR /app
