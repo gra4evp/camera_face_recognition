@@ -4,8 +4,9 @@ from threading import Thread
 import cv2
 from flask import Flask, request, jsonify
 
-from image_processing import Compose, CropFrame, ScaleFrame, Canny, GrayToRGB, transform_frame, crop_frame, scale_frame
+from image_processing import Compose, CropFrame, ScaleFrame, Canny, GrayToRGB
 from face_detection import MTCNNFaceDetector
+from embeddings import InceptionResnetV1Embedder
 from stream_utils import connect_to_stream
 from config import RTSP_URL, CAMERA_ROI
 from logger import collogger
@@ -17,6 +18,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql://
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 face_detector = MTCNNFaceDetector(identify_device=True)
+embedder = InceptionResnetV1Embedder(pretrained='vggface2')
 
 
 def detect_stream(cap, process_every_n_frame, transforms):
@@ -32,7 +34,8 @@ def detect_stream(cap, process_every_n_frame, transforms):
         frame_count += 1
         if frame_count % process_every_n_frame == 0:
             detected_faces = face_detector.process_frame(frame=frame, frame_count=frame_count)
-            save_faces_to_db(imgs=detected_faces['images'], filenames=detected_faces['filenames'])
+            face_embeddings = embedder.get_embeddings(detected_faces['images'])
+            save_faces_to_db(imgs=detected_faces['images'], filenames=detected_faces['filenames'], embeddings=face_embeddings)
 
     cap.release()
 
