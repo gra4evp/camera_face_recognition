@@ -4,7 +4,7 @@ from threading import Thread
 import cv2
 from flask import Flask, request, jsonify
 
-from image_processing import transform_frame, crop_frame, scale_frame
+from image_processing import Compose, CropFrame, ScaleFrame, Canny, GrayToRGB, transform_frame, crop_frame, scale_frame
 from face_detection import MTCNNFaceDetector
 from stream_utils import connect_to_stream
 from config import RTSP_URL, CAMERA_ROI
@@ -19,7 +19,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 face_detector = MTCNNFaceDetector(identify_device=True)
 
 
-def detect_stream(cap, process_every_n_frame, frame_scale=0.5):
+def detect_stream(cap, process_every_n_frame, transforms):
     frame_count = 0
     while True:
         success, frame = cap.read()
@@ -27,13 +27,8 @@ def detect_stream(cap, process_every_n_frame, frame_scale=0.5):
             collogger.warning("Не удалось получить кадр. Прерывание...")
             break
 
-        frame = transform_frame(
-            frame,
-            transforms=[
-                (crop_frame, {'bbox': CAMERA_ROI}),
-                (scale_frame, {'scale': frame_scale})
-            ]
-        )
+        frame = transforms(frame)
+
         frame_count += 1
         if frame_count % process_every_n_frame == 0:
             detected_faces = face_detector.process_frame(frame=frame, frame_count=frame_count)
@@ -63,7 +58,14 @@ def start_detection():
         stream_fps = cap.get(cv2.CAP_PROP_FPS)
         collogger.info(f"Stream FPS: {stream_fps}")
 
-        thread = Thread(target=detect_stream, args=(every_n_frame,))
+        frame_transforms = Compose([
+            CropFrame(bbox=CAMERA_ROI),
+            ScaleFrame(scale=0.5),
+            # Canny(threshold1=100, threshold2=200),
+            # GrayToRGB()
+        ])
+
+        thread = Thread(target=detect_stream, args=(cap, every_n_frame, frame_transforms))
         thread.start()
 
         collogger.info(f"Начато обнаружение лиц для потока: {RTSP_URL} с каждым {every_n_frame}-ым кадром")
