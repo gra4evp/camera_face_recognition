@@ -85,6 +85,26 @@ class Canny:
         return edges
 
 
+class GrayToRGB:
+    """
+    Класс для преобразования одноканального изображения в трехканальное (RGB).
+    """
+
+    def __call__(self, frame: np.ndarray) -> np.ndarray:
+        """
+        Преобразует одноканальное изображение в трехканальное (RGB).
+
+        Parameters:
+        - frame (numpy.ndarray): Входное изображение.
+
+        Returns:
+        - numpy.ndarray: Трехканальное изображение (RGB).
+        """
+        if len(frame.shape) == 2:  # если изображение одноканальное
+            frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
+        return frame
+
+
 class Compose:
     """
     Класс для последовательного применения нескольких трансформаций.
