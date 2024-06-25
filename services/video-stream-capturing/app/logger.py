@@ -1,4 +1,11 @@
+# =============================
+# import standard libraries
+# =============================
 import logging
+
+# =============================
+# import additional installed libraries
+# =============================
 import colorlog
 
 
