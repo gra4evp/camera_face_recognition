@@ -1,7 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 import cv2
 
-from src.logger import collogger
+from services.logger import collogger
 
 db = SQLAlchemy()
 
