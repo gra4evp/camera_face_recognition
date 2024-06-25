@@ -1,24 +1,35 @@
-# =============================
+# =========================
 # import standard libraries
-# =============================
+# =========================
+import sys
 import os
-from threading import Thread
 
-# =============================
+# # Получаем текущую директорию скрипта
+# current_dir = os.path.dirname(os.path.abspath(__file__))
+#
+# # Добавляем папку `app` через относительный путь
+# app_dir = os.path.abspath(os.path.join(current_dir, '..', 'app'))
+# sys.path.append(app_dir)
+# from threading import Thread
+import base64
+
+
+# =====================================
 # import additional installed libraries
-# =============================
+# =====================================
 import cv2
 from fastapi import FastAPI, BackgroundTasks, HTTPException
 from pydantic import BaseModel
 import httpx
 
-# =============================
+
+# ====================
 # import local modules
-# =============================
-from image_processing import Compose, CropFrame, ScaleFrame
-from stream_utils import connect_to_stream
-from config import RTSP_URL, CAMERA_ROI
-from services.logger import collogger
+# ====================
+from .image_processing import Compose, CropFrame, ScaleFrame
+from .stream_utils import connect_to_stream
+from .config import RTSP_URL, CAMERA_ROI
+from .logger import collogger
 
 # =============================
 # Database configuration (if needed)
@@ -82,6 +93,45 @@ async def start_capturing(capture_request: CaptureRequest, background_tasks: Bac
 
         collogger.info(f"Начато обнаружение лиц для потока: {RTSP_URL} с каждым {process_every_n_frame}-ым кадром")
         return {"message": "Face detection started"}
+
+    collogger.error("Ошибка подключения к видеопотоку")
+    raise HTTPException(status_code=400, detail="Error connecting to the video stream")
+
+
+@app.get('/test_capture')
+async def test_capture(capture_request: CaptureRequest):
+    process_every_n_frame = capture_request.process_every_n_frame
+    cap = connect_to_stream(video_src=RTSP_URL)
+    if cap is not None:
+        frame_count = 0
+        while True:
+
+            success, frame = cap.read()
+            if not success:
+                collogger.warning("Не удалось получить кадр. Прерывание...")
+                cap.release()
+                raise HTTPException(status_code=400, detail="Failed to capture frame")
+
+            transforms = Compose([CropFrame(bbox=CAMERA_ROI), ScaleFrame(scale=0.5)])
+            frame_count += 1
+            if frame_count % process_every_n_frame == 0:
+                transformed_frame = transforms(frame)
+                _, buffer = cv2.imencode('.jpg', transformed_frame)
+                frame_bytes = buffer.tobytes()
+
+                cap.release()
+
+                collogger.info("Кадр успешно считан")
+
+                # Конвертируем кадр в base64 для отправки обратно
+                frame_base64 = base64.b64encode(buffer).decode('utf-8')
+                frame_shape = transformed_frame.shape
+
+                return {
+                    "message": "Frame captured and processed",
+                    "frame_shape": frame_shape,
+                    "frame_base64": frame_base64
+                }
 
     collogger.error("Ошибка подключения к видеопотоку")
     raise HTTPException(status_code=400, detail="Error connecting to the video stream")
