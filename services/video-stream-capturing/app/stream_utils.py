@@ -1,6 +1,19 @@
-from logger import collogger
-import cv2
+# =========================
+# import standard libraries
+# =========================
 import time
+
+
+# =====================================
+# import additional installed libraries
+# =====================================
+import cv2
+
+
+# ====================
+# import local modules
+# ====================
+from .logger import collogger
 
 
 def connect_to_stream(video_src, max_attempts=5, delay=5):
