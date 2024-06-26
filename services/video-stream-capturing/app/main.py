@@ -3,14 +3,6 @@
 # =========================
 import sys
 import os
-
-# # Получаем текущую директорию скрипта
-# current_dir = os.path.dirname(os.path.abspath(__file__))
-#
-# # Добавляем папку `app` через относительный путь
-# app_dir = os.path.abspath(os.path.join(current_dir, '..', 'app'))
-# sys.path.append(app_dir)
-# from threading import Thread
 import base64
 
 
@@ -26,10 +18,16 @@ import httpx
 # ====================
 # import local modules
 # ====================
-from .image_processing import Compose, CropFrame, ScaleFrame
-from .stream_utils import connect_to_stream
-from .config import RTSP_URL, CAMERA_ROI
-from .logger import collogger
+from image_processing import Compose, CropFrame, ScaleFrame
+from stream_utils import connect_to_stream
+from config import RTSP_URL, CAMERA_ROI
+from logger import logging_config, collogger
+
+
+# Получаем текущую директорию скрипта и добавляем в переменную окружения
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.append(current_dir)
 
 # =============================
 # Database configuration (if needed)
@@ -74,6 +72,11 @@ async def process_stream(cap, process_every_n_frame, transforms, url):
     cap.release()
 
 
+@app.get("/")
+def hello():
+    return "hello world"
+
+
 @app.post('/start_capturing')
 async def start_capturing(capture_request: CaptureRequest, background_tasks: BackgroundTasks):
     # тут нужно обработать запрос в нем передается количество кадров для обработки и если все, хорошо
@@ -98,7 +101,7 @@ async def start_capturing(capture_request: CaptureRequest, background_tasks: Bac
     raise HTTPException(status_code=400, detail="Error connecting to the video stream")
 
 
-@app.get('/test_capture')
+@app.post('/test_capture')
 async def test_capture(capture_request: CaptureRequest):
     process_every_n_frame = capture_request.process_every_n_frame
     cap = connect_to_stream(video_src=RTSP_URL)
@@ -139,4 +142,6 @@ async def test_capture(capture_request: CaptureRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    log_config = uvicorn.config.LOGGING_CONFIG
+    log_config["formatters"]["access"]["fmt"] = "%(asctime)s - %(levelname)s - %(message)s"
+    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="debug", log_config=log_config)
